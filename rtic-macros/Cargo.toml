@@ -10,13 +10,7 @@ categories = ["concurrency", "embedded", "no-std", "asynchronous"]
 description = "Procedural macros, syntax parsing, and codegen of the RTIC crate"
 documentation = "https://rtic-rs.github.io/rtic/api/rtic"
 edition = "2021"
-keywords = [
-  "embedded",
-  "async",
-  "runtime",
-  "no-std",
-  "rtos",
-]
+keywords = ["embedded", "async", "runtime", "no-std", "rtos"]
 license = "MIT OR Apache-2.0"
 name = "rtic-macros"
 readme = "../README.md"
@@ -34,6 +28,7 @@ default = []
 cortex-m-source-masking = []
 cortex-m-basepri = []
 riscv-esp32c3 = []
+riscv-cva6 = []
 # riscv-clic = []
 # riscv-ch32 = []
 

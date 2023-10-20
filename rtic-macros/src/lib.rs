@@ -14,7 +14,9 @@ macro_rules! with_backend {
             feature = "cortex-m-source-masking",
             feature = "cortex-m-basepri",
             feature = "test-template",
-            feature = "riscv-esp32c3"
+            feature = "riscv-esp32c3",
+            feature = "riscv-cva6"
+
         ))]
         $($tokens)*
     };
@@ -109,6 +111,7 @@ with_backend! {
     feature = "cortex-m-source-masking",
     feature = "cortex-m-basepri",
     feature = "test-template",
-    feature = "riscv-esp32c3"
+    feature = "riscv-esp32c3",
+    feature = "riscv-cva6"
 )))]
 compile_error!("Cannot compile. No backend feature selected.");
