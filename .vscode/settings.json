@@ -1,5 +1,11 @@
 {
     "rust-analyzer.linkedProjects": [
+        "./rtic-macros/Cargo.toml",
+        "./rtic-macros/Cargo.toml",
         "./rtic-macros/Cargo.toml"
-    ]
+    ],
+    "rust-analyzer.cargo.features": [
+        "riscv-cva6"
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

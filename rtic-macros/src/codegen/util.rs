@@ -8,7 +8,6 @@ pub use super::bindings::interrupt_ident;
 
 const RTIC_INTERNAL: &str = "__rtic_internal";
 
-
 /// Mark a name as internal
 pub fn mark_internal_name(name: &str) -> Ident {
     Ident::new(&format!("{RTIC_INTERNAL}_{name}"), Span::call_site())
