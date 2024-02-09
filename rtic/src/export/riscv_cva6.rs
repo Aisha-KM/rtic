@@ -1,7 +1,13 @@
-use esp32c3::INTERRUPT_CORE0; //priority threshold control
-pub use esp32c3::{Interrupt, Peripherals};
-pub use riscv::{interrupt, register::mcause}; //low level interrupt enable/disable
+use ballast_hpc_pac::clint::{HartId, CLINT};
+use ballast_hpc_pac::hpc::CLINT;
+extern crate riscv_slic;
 
+riscv_slic::codegen!(
+    pac = ballast_hpc_pac,
+    swi = [Soft1, Soft2, Soft3], //is those enough?
+    backend = [hart_id = HART0]
+);
+use slic::Interrupt as SoftwareInterrupts; // Re-export of automatically generated enum of interrupts in previous macro
 #[cfg(all(feature = "riscv-cva6", not(feature = "riscv-cva6-backend")))]
 compile_error!("Building for the CVA6, but 'riscv-cva6-backend not selected'");
 
@@ -12,27 +18,16 @@ where
 {
     if priority == 1 {
         //if priority is 1, priority thresh should be 1
+
         f();
-        unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .write(|w| w.cpu_int_thresh().bits(1));
-        }
+        unsafe { riscv_slic::set_threshold(0x1) }
     } else {
         //read current thresh
-        let initial = unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .read()
-                .cpu_int_thresh()
-                .bits()
-        };
+        let initial = riscv_slic::get_threshold();
         f();
         //write back old thresh
         unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .write(|w| w.cpu_int_thresh().bits(initial));
+            riscv_slic::set_threshold(initial);
         }
     }
 }
@@ -60,25 +55,11 @@ pub unsafe fn lock<T, R>(ptr: *mut T, ceiling: u8, f: impl FnOnce(&mut T) -> R) 
         let r = critical_section::with(|_| f(&mut *ptr));
         r
     } else {
-        let current = unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .read()
-                .cpu_int_thresh()
-                .bits()
-        };
+        let current = riscv_slic::get_threshold();
 
-        unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .write(|w| w.cpu_int_thresh().bits(ceiling + 1))
-        } //esp32c3 lets interrupts with prio equal to threshold through so we up it by one
+        unsafe { riscv_slic::set_threshold(ceiling) }
         let r = f(&mut *ptr);
-        unsafe {
-            (*INTERRUPT_CORE0::ptr())
-                .cpu_int_thresh
-                .write(|w| w.cpu_int_thresh().bits(current))
-        }
+        unsafe { riscv_slic::set_threshold(current) }
         r
     }
 }
@@ -87,24 +68,10 @@ pub unsafe fn lock<T, R>(ptr: *mut T, ceiling: u8, f: impl FnOnce(&mut T) -> R) 
 #[inline(always)]
 pub fn pend(int: Interrupt) {
     unsafe {
-        let peripherals = Peripherals::steal();
         match int {
-            Interrupt::FROM_CPU_INTR0 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_0
-                .write(|w| w.cpu_intr_from_cpu_0().bit(true)),
-            Interrupt::FROM_CPU_INTR1 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_1
-                .write(|w| w.cpu_intr_from_cpu_1().bit(true)),
-            Interrupt::FROM_CPU_INTR2 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_2
-                .write(|w| w.cpu_intr_from_cpu_2().bit(true)),
-            Interrupt::FROM_CPU_INTR3 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_3
-                .write(|w| w.cpu_intr_from_cpu_3().bit(true)),
+            SoftwareInterrupts::Soft1 => riscv_slic::pend(SoftwareInterrupts::Soft1),
+            SoftwareInterrupts::Soft2 => riscv_slic::pend(SoftwareInterrupts::Soft2),
+            SoftwareInterrupts::Soft3 => riscv_slic::pend(SoftwareInterrupts::Soft3),
             _ => panic!("Unsupported software interrupt"), //should never happen, checked at compile time
         }
     }
@@ -113,52 +80,19 @@ pub fn pend(int: Interrupt) {
 // Sets the given software interrupt as not pending
 pub fn unpend(int: Interrupt) {
     unsafe {
-        let peripherals = Peripherals::steal();
         match int {
-            Interrupt::FROM_CPU_INTR0 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_0
-                .write(|w| w.cpu_intr_from_cpu_0().bit(false)),
-            Interrupt::FROM_CPU_INTR1 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_1
-                .write(|w| w.cpu_intr_from_cpu_1().bit(false)),
-            Interrupt::FROM_CPU_INTR2 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_2
-                .write(|w| w.cpu_intr_from_cpu_2().bit(false)),
-            Interrupt::FROM_CPU_INTR3 => peripherals
-                .SYSTEM
-                .cpu_intr_from_cpu_3
-                .write(|w| w.cpu_intr_from_cpu_3().bit(false)),
+            SoftwareInterrupts::Soft1 => riscv_slic::unpend(SoftwareInterrupts::Soft1),
+            SoftwareInterrupts::Soft2 => riscv_slic::unpend(SoftwareInterrupts::Soft2),
+            SoftwareInterrupts::Soft3 => riscv_slic::unpend(SoftwareInterrupts::Soft3),
             _ => panic!("Unsupported software interrupt"),
         }
     }
 }
 
 pub fn enable(int: Interrupt, prio: u8, cpu_int_id: u8) {
-    const INTERRUPT_MAP_BASE: u32 = 0x600c2000; //this isn't exposed properly in the PAC,
-                                                //should maybe figure out a workaround that
-                                                //doesnt involve raw pointers.
-                                                //Again, this is how they do it in the HAL
-                                                //but i'm really not a fan.
-    let interrupt_number = int as isize;
-    let cpu_interrupt_number = cpu_int_id as isize;
-
     unsafe {
-        let intr_map_base = INTERRUPT_MAP_BASE as *mut u32;
-        intr_map_base
-            .offset(interrupt_number)
-            .write_volatile(cpu_interrupt_number as u32);
-        //map peripheral interrupt to CPU interrupt
-        (*INTERRUPT_CORE0::ptr())
-            .cpu_int_enable
-            .modify(|r, w| w.bits((1 << cpu_interrupt_number) | r.bits())); //enable the CPU interupt.
-        let intr = INTERRUPT_CORE0::ptr();
-        let intr_prio_base = (*intr).cpu_int_pri_0.as_ptr();
-
-        intr_prio_base
-            .offset(cpu_interrupt_number)
-            .write_volatile(prio as u32);
+        CLINT::mswi_enable();
+        riscv_slic::set_interrupts(); //enables software interrupts in mie
+        riscv_slic::enable(); //enables global interrupts in mstatus
     }
 }

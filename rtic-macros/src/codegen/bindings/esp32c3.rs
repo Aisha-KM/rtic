@@ -72,9 +72,9 @@ mod esp32c3 {
     }
     pub fn pre_init_enable_interrupts(app: &App, analysis: &CodegenAnalysis) -> Vec<TokenStream2> {
         let mut stmts = vec![];
-        let mut curr_cpu_id:u8 = 1; //cpu interrupt id 0 is reserved
+        let mut curr_cpu_id: u8 = 1; //cpu interrupt id 0 is reserved
         let rt_err = util::rt_err_ident();
-        let max_prio: usize = 15; //unfortunately this is not part of pac, but we know that max prio is 15.
+        let max_prio: usize = 15; // TODO:check the max priority for cva6
         let interrupt_ids = analysis.interrupts.iter().map(|(p, (id, _))| (p, id));
         // Unmask interrupts and set their priorities
         for (&priority, name) in interrupt_ids.chain(

@@ -28,6 +28,7 @@ name = "rtic"
 esp32c3 = { version = "0.17.0", optional = true }
 riscv = { version = "0.10.1", optional = true }
 cortex-m = { version = "0.7.0", optional = true }
+ballast-hpc-pac = { path = "../../ballast-pac/ballast-hpc-pac" }
 bare-metal = "1.0.0"
 #portable-atomic = { version = "0.3.19" }
 atomic-polyfill = "1"
@@ -35,6 +36,10 @@ rtic-monotonics = { path = "../rtic-monotonics", version = "1.0.0", optional = t
 rtic-macros = { path = "../rtic-macros", version = "2.0.1" }
 rtic-core = "1"
 critical-section = "1"
+riscv-slic = { git = "https://github.com/romancardenas/riscv-slic.git", features = [
+  "clint-backend",
+], version = "0.1.0" }
+
 
 [dev-dependencies]
 heapless = "0.7.7"
