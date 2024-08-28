@@ -25,10 +25,10 @@ features = ["rtic-macros/test-template"]
 name = "rtic"
 
 [dependencies]
+hpc-hal = { path = "../../soc-hub-hal/hpc-hal", features = ["ballast-hpc"] }
 esp32c3 = { version = "0.17.0", optional = true }
 riscv = { version = "0.10.1", optional = true }
 cortex-m = { version = "0.7.0", optional = true }
-ballast-hpc-pac = { path = "../../ballast-pac/ballast-hpc-pac" }
 bare-metal = "1.0.0"
 #portable-atomic = { version = "0.3.19" }
 atomic-polyfill = "1"
