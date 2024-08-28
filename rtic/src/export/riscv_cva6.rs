@@ -1,13 +1,7 @@
 use ballast_hpc_pac::clint::{HartId, CLINT};
 use ballast_hpc_pac::hpc::CLINT;
-extern crate riscv_slic;
-
-riscv_slic::codegen!(
-    pac = ballast_hpc_pac,
-    swi = [Soft1, Soft2, Soft3], //is those enough?
-    backend = [hart_id = HART0]
-);
-use slic::Interrupt as SoftwareInterrupts; // Re-export of automatically generated enum of interrupts in previous macro
+use hpc_hal::slic::*;
+use riscv_slic;
 #[cfg(all(feature = "riscv-cva6", not(feature = "riscv-cva6-backend")))]
 compile_error!("Building for the CVA6, but 'riscv-cva6-backend not selected'");
 
